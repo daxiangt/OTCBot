@@ -1,0 +1,33 @@
+# .gitignore for OTCBot
+
+# --- Sensitive Configurations ---
+# 忽略包含所有密钥、令牌和用户列表的Config文件夹。
+# 这是最重要的部分，可以防止敏感信息泄露。
+Config/
+
+# --- Runtime Generated Logs ---
+# 忽略日志文件目录。
+logs/
+
+# --- Python Virtual Environments ---
+# 忽略常见的Python虚拟环境文件夹名称。
+venv/
+env/
+.venv/
+.env/
+
+# --- Python Cache & Compiled Files ---
+# 忽略Python在运行时生成的缓存文件。
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- IDE & Editor Configuration ---
+# 忽略常用IDE（如VSCode, PyCharm）的配置文件夹。
+.vscode/
+.idea/
+
+# --- OS-specific Files ---
+# 忽略macOS系统文件。
+.DS_Store
