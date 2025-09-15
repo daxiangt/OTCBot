@@ -67,13 +67,13 @@ Key functionalities include broadcasting messages, monitoring groups for unanswe
 
 ### Configuration Files
 
-You must create a `Config` folder and populate it with the following CSV files.
+You must create the `Config` folder and populate it with the following CSV files.
 
-#### `Token.csv`
-This file contains your unique Telegram Bot Token. **Note:** The code expects this file to be named `TGToken.csv`.
+#### `TGToken.csv`
+This file contains your unique Telegram Bot Token.
 
 * **Format**: A single line with the token. No header.
-* **Example**:
+* **Example:**
     ```
     1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789
     ```
@@ -83,7 +83,7 @@ This file lists the Telegram User IDs of administrators who are authorized to us
 
 * **How to get a User ID**: Message [@userinfobot](https://t.me/userinfobot) on Telegram.
 * **Format**: A header followed by one User ID per line.
-* **Example**:
+* **Example:**
     ```csv
     user_id
     987654321
@@ -95,8 +95,9 @@ These files define the target groups for broadcasting. `Group_List_All.csv` shou
 
 * **How to get a Group ID**:
     1.  Add your bot to the target group.
-    2.  Send the `/start` command in that group.
-    3.  The bot will reply with the Group Chat ID. It will be a negative number.
+    2.  Make sure the bot has permission to read messages.
+    3.  Send the `/start` command in that group.
+    4.  The bot will reply with the Group Chat ID (it will be a negative number).
 * **Format**: A header followed by one Group ID per line.
 * **Example (`Group_List_All.csv`):**
     ```csv
@@ -109,7 +110,7 @@ These files define the target groups for broadcasting. `Group_List_All.csv` shou
 This file lists the Group IDs of chats where the bot should monitor for unanswered messages.
 
 * **Format**: A header followed by one Group ID per line.
-* **Example**:
+* **Example:**
     ```csv
     group_id
     -1001111111111
@@ -119,7 +120,7 @@ This file lists the Group IDs of chats where the bot should monitor for unanswer
 Contains your Twilio credentials for making phone call alerts.
 
 * **Format**: Three lines, in this specific order: Account SID, Auth Token, and your Twilio phone number. No header.
-* **Example**:
+* **Example:**
     ```
     ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     your_auth_token_here
@@ -130,7 +131,7 @@ Contains your Twilio credentials for making phone call alerts.
 A list of phone numbers to call for Twilio alerts.
 
 * **Format**: One phone number per line in E.164 format (`+` followed by country code and number). No header.
-* **Example**:
+* **Example:**
     ```
     +14155552671
     +442071838750
