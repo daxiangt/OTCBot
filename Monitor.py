@@ -75,8 +75,8 @@ async def monitor_group_chats(update: Update, context: ContextTypes.DEFAULT_TYPE
     allowed_user_ids = context.bot_data.get("allowed_user_ids", set())
     monitor_ids = context.bot_data.get("monitor_ids", set())
 
-    # Only monitor messages in specified groups and ignore messages from the bot itself.
-    if chat.id not in monitor_ids or user.id == context.bot.id:
+    # Only monitor messages in specified groups and ignore messages from any bot.
+    if chat.id not in monitor_ids or user.is_bot:
         return
 
     unanswered_job = context.chat_data.get('unanswered_job')
