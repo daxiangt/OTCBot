@@ -22,6 +22,7 @@ import csv
 from pythonjsonlogger import jsonlogger 
 
 from Monitor import monitor_group_chats
+from MarkPx import mark_px
 
 
 # --- FILE PATHS ---
@@ -38,6 +39,7 @@ LOGS_DIR = SCRIPT_DIR / "logs"
 
 # --- Conversation states ---
 CHOOSING_GROUP = 0
+GETTING_LEGS = 1
 
 #--- Start time ---
 BOT_START_TIME = datetime.datetime.now()
@@ -399,11 +401,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     "/start - Shows the welcome message.\n"
     "/send <message> - Broadcasts a text message or a photo.\n"
     "/reload - Reloads the user and group lists.\n"
+    "/px - Calculates the net mark price for a multi-leg options strategy.\n"
     "/status - Shows the bot's current status and uptime.\n"
     "/help - Shows this help message.\n"
     "Automatic Features:\n"
-    " *Admin Notifications when the bot is added or removed from a group.\n"
-    " *Unanswered Message Alerts in monitored groups."
+    " **Admin Notifications when the bot is added or removed from a group.\n"
+    " **Unanswered Message Alerts in monitored groups."
     )
     await update.message.reply_text(help_message)
     logger.info(f"User {user.username} ({user.id}) is checking help")
@@ -428,22 +431,17 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     minutes, seconds = divmod(remainder, 60)
     uptime_str = f"{days}d, {hours}h, {minutes}m, {seconds}s"
 
-    #MarkdownV2 escape
-    last_heartbeat_raw = context.bot_data.get('last_heartbeat', 'Never')
-    last_heartbeat_escaped = escape_markdown(last_heartbeat_raw, version=2)
-
     status_message = (
-        f"*Bot Status: Running ✅*\n"
-        f"*Uptime:* {uptime_str}\n"
-        f"*Allowed Users:* {len(ALLOWED_USER_IDS)}\n"
-        f"*Large Groups:* {len(GROUP_IDS_LARGE)}\n"
-        f"*Total Groups:* {len(GROUP_IDS_ALL)}\n"
-        f"*Monitored Groups:* {len(MONITOR_GROUP_IDS)}\n"
-        f"*Last Heartbeat:* {last_heartbeat_escaped}"
+        f"Bot Status: Running ✅\n"
+        f"Uptime: {uptime_str}\n"
+        f"Allowed Users: {len(ALLOWED_USER_IDS)}\n"
+        f"Large Groups: {len(GROUP_IDS_LARGE)}\n"
+        f"Total Groups: {len(GROUP_IDS_ALL)}\n"
+        f"Monitored Groups: {len(MONITOR_GROUP_IDS)}\n"
+        f"Last Heartbeat: {context.bot_data.get('last_heartbeat', 'Never')}"
     )
     
-    # Use MarkdownV2 for formatting
-    await update.message.reply_text(status_message, parse_mode='MarkdownV2')
+    await update.message.reply_text(status_message)
     logger.info(f"User {user.username} ({user.id}) checked status.")
 
 
@@ -456,11 +454,62 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     logger.info(f"User {user.username} ({user.id}) entered unknown command: {update.message.text}")
 
 
+# --- Price Command Conversation ---
+
+async def price_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.effective_user
+    logger.info(f"User {user.username} ({user.id}) initiated price calculation with /px.")
+
+    prompt_message = (
+        "Please enter the strategy legs, one per line\. \n\n"
+        "*Format:* `[+/-]quantity [BTC-]EXPIRY-STRIKE-TYPE`\n"
+        "Can omit `BTC-` for Bitcoin options and can omit all `-` in the instrument name\. \n\n"
+        "**Example:**\n"
+        "`+1 26DEC25 95000 P`\n"
+        "`-2 26DEC25 130000 C`\n"
+
+        "Use `/cancel` to exit\."
+
+    )
+    await update.message.reply_text(prompt_message, parse_mode=ParseMode.MARKDOWN_V2)
+    return GETTING_LEGS
+
+async def price_get_legs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Receives the legs, calls mark_px, and returns the result."""
+    user = update.effective_user
+    user_input = update.message.text
+    logger.info(f"User {user.username} ({user.id}) submitted legs for /px: {user_input.replace(chr(10), '; ')}")
+    # Split the input by newlines and filter out any empty lines
+    strategy_legs_input = [line.strip() for line in user_input.split('\n') if line.strip()]
+
+    if not strategy_legs_input:
+        await update.message.reply_text("You didn't provide any legs. Please try again or use /cancel.")
+        return GETTING_LEGS
+
+    await update.message.reply_text("Calculating, please wait...")
+
+    # Call the async mark_px function
+    result_string = await mark_px(strategy_legs_input)
+
+    # Send the result back to the user
+    await update.message.reply_text(result_string)
+
+    return ConversationHandler.END
+
+async def price_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancels the price calculation operation."""
+    user = update.effective_user
+    logger.info(f"User {user.username} ({user.id}) canceled the price calculation.")
+    await update.message.reply_text("Price calculation canceled. Please re-enter command.")
+    return ConversationHandler.END
+
+
+
 #heartbeat
 async def heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a heartbeat message to a specific user to show the bot is alive."""
     # The user ID to send the heartbeat to, as per the request.
-    HEARTBEAT_RECIPIENT_ID = 5596846279
+    HEARTBEAT_RECIPIENT_ID = 5596846279 #send to Tony only
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     context.bot_data['last_heartbeat'] = current_time
@@ -470,7 +519,7 @@ async def heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_message(chat_id=HEARTBEAT_RECIPIENT_ID, text=message)
         logger.info(f"Sent heartbeat message to recipient ({HEARTBEAT_RECIPIENT_ID}).")
     except Exception as e:
-        logger.error(f"Failed to send heartbeat message to recipient ({HEARTBE-AT_RECIPIENT_ID}): {e}")
+        logger.error(f"Failed to send heartbeat message to recipient ({HEARTBEAT_RECIPIENT_ID}): {e}")
 
 
 # Handle bot being added to a new group
@@ -491,7 +540,6 @@ async def on_new_group_join(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
         logger.info(f"Bot was added to new group '{chat.title}' ({chat.id}) by {user_who_added.username} ({user_who_added.id}).")
 
-        # Prepare the raw notification message
         message_to_admins = (
             f"🔼 New Group Joined 🔼\n"
             f"I have been added to a new group.\n"
@@ -499,9 +547,6 @@ async def on_new_group_join(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"Group ID: {chat.id}\n"
             f"Added By: @{user_who_added.username or 'N/A'}"
         )
-        # Escape the entire message for MarkdownV2
-        escaped_message = escape_markdown(message_to_admins, version=2)
-
 
         # Send the notification to all allowed users
         if not ALLOWED_USER_IDS:
@@ -511,9 +556,7 @@ async def on_new_group_join(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         for admin_id in ALLOWED_USER_IDS:
             try:
                 await context.bot.send_message(
-                    chat_id=admin_id,
-                    text=escaped_message,
-                    parse_mode=ParseMode.MARKDOWN_V2
+                    chat_id=admin_id, text=message_to_admins
                 )
             except Exception as e:
                 logger.error(f"Failed to send 'new group' notification to admin {admin_id}: {e}")
@@ -536,7 +579,6 @@ async def on_group_leave(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         logger.info(f"Bot was removed from group '{chat.title}' ({chat.id}) by {user_who_removed.username} ({user_who_removed.id}).")
 
-        # Prepare the raw notification message
         message_to_admins = (
             f"🔽 Removed From Group 🔽\n"
             f"I have been removed from a group.\n"
@@ -544,8 +586,6 @@ async def on_group_leave(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             f"Group ID: {chat.id}\n"
             f"Removed By: @{user_who_removed.username or 'N/A'}"
         )
-        # Escape the entire message for MarkdownV2
-        escaped_message = escape_markdown(message_to_admins, version=2)
 
         # Send notification to all allowed users
         if not ALLOWED_USER_IDS:
@@ -555,9 +595,7 @@ async def on_group_leave(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         for admin_id in ALLOWED_USER_IDS:
             try:
                 await context.bot.send_message(
-                    chat_id=admin_id,
-                    text=escaped_message,
-                    parse_mode=ParseMode.MARKDOWN_V2
+                    chat_id=admin_id, text=message_to_admins
                 )
             except Exception as e:
                 logger.error(f"Failed to send 'group leave' notification to admin {admin_id}: {e}")
@@ -618,10 +656,21 @@ def main() -> None:
         fallbacks=[CommandHandler("send", send_start)],
     )
 
+    price_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("px", price_start)],
+        states={
+            GETTING_LEGS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, price_get_legs)
+            ]
+        },
+        fallbacks=[MessageHandler(filters.COMMAND, price_cancel)],
+    )
 
 
     # Register the command handlers
     application.add_handler(send_conv_handler)
+    application.add_handler(price_conv_handler)
+
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("reload", reload_command))

@@ -13,6 +13,7 @@ Key functionalities include broadcasting messages, monitoring groups for unanswe
 
 *   **Broadcast Messaging**: Send text messages or photos with captions to multiple groups at once.
 *   **Group Selection**: Choose between broadcasting to a list of "Large Groups" or "All Groups".
+*   **Options Strategy Pricer**: Calculate the net mark price for a multi-leg options strategy from Deribit using the `/px` command.
 *   **Authorization Control**: Only users listed in `Allowed_User.csv` can perform administrative actions.
 *   **Dynamic Configuration**: Reload all user and group lists from CSV files on-the-fly with the `/reload` command, without needing to restart the bot.
 *   **Unanswered Message Alerts**: Monitors designated groups and triggers alerts if a user's message isn't answered by an admin within 5 minutes.
@@ -43,7 +44,7 @@ Key functionalities include broadcasting messages, monitoring groups for unanswe
 
 2.  **Install required Python libraries** using pip:
     ```sh
-    pip install python-telegram-bot python-json-logger requests twilio
+    pip install python-telegram-bot python-json-logger requests twilio aiohttp
     ```
 
 3.  **Create the necessary configuration files and directory structure.** Your project folder should look like this:
@@ -52,6 +53,7 @@ Key functionalities include broadcasting messages, monitoring groups for unanswe
     /your_project_folder
     |-- OTCBot.py
     |-- Monitor.py
+    |-- MarkPx.py
     |-- lark_notifier.py
     |-- call_notifier.py
     |-- /Config/
