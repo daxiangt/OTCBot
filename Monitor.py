@@ -23,7 +23,7 @@ async def unanswered_message_callback(context: ContextTypes.DEFAULT_TYPE) -> Non
 
     notification_message = (
         f"🚨 Unanswered Message Alert 🚨\n"
-        f"A message from user '{user_name}' in group '{chat_title}' has not been answered for 5 minutes."
+        f"A message from user '{user_name}' in group '{chat_title}' has not been answered for 3 minutes."
     )
     
     logger.warning(f"Unanswered message in '{chat_title}'. Triggering notifications.")
@@ -115,10 +115,10 @@ async def monitor_group_chats(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         job = context.job_queue.run_once(
             unanswered_message_callback,
-            5, # 5 minutes
+            180, # 3 minutes
             name=f"unanswered_{chat.id}_{message.message_id}",
             chat_id=chat.id,
             data={'chat_title': chat.title, 'user_name': user.full_name}
         )
         context.chat_data['unanswered_job'] = job
-        logger.info(f"Non-admin '{user.username}' sent a message in '{chat.title}'. Scheduled a 5-min check.")
+        logger.info(f"Non-admin '{user.username}' sent a message in '{chat.title}'. Scheduled a 3-min check.")

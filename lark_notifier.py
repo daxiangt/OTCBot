@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # IMPORTANT: Please replace the URL below with your own Lark Webhook URL
-LARK_WEBHOOK_URL = "https://open.larksuite.com/open-apis/bot/v2/hook/438b2f7c-f1be-4296-b07a-00b64cb13939"
+LARK_WEBHOOK_URL = "https://open.larksuite.com/open-apis/bot/v2/hook/1db81890-17f5-4278-9f96-82b442a4850f"
 
 def send_lark_notification(message: str, mention_all: bool = True):
     """

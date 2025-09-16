@@ -458,22 +458,19 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 #heartbeat
 async def heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Sends a heartbeat message to the allowed users to show the bot is alive."""
-    if not ALLOWED_USER_IDS:
-        logger.warning("Heartbeat: No allowed users configured to send status.")
-        return
-
+    """Sends a heartbeat message to a specific user to show the bot is alive."""
+    # The user ID to send the heartbeat to, as per the request.
+    HEARTBEAT_RECIPIENT_ID = 5596846279
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     context.bot_data['last_heartbeat'] = current_time
     message = f"Heartbeat\nBot Status: Running ✅ \nTimestamp: {current_time}"
 
     try:
-        for admin_id in ALLOWED_USER_IDS:
-            await context.bot.send_message(chat_id=admin_id, text=message)
-            logger.info(f"Sent heartbeat message to admin ({admin_id}).")
+        await context.bot.send_message(chat_id=HEARTBEAT_RECIPIENT_ID, text=message)
+        logger.info(f"Sent heartbeat message to recipient ({HEARTBEAT_RECIPIENT_ID}).")
     except Exception as e:
-        logger.error(f"Failed to send heartbeat message to admin ({admin_id}): {e}")
+        logger.error(f"Failed to send heartbeat message to recipient ({HEARTBE-AT_RECIPIENT_ID}): {e}")
 
 
 # Handle bot being added to a new group
