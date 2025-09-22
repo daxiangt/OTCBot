@@ -463,7 +463,7 @@ async def price_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     prompt_message = (
         "Please enter the strategy legs, one per line\. \n\n"
         "*Format:* `[+/-]quantity [BTC-]EXPIRY-STRIKE-TYPE`\n"
-        "Can omit `BTC-` for Bitcoin options and can omit all `-` in the instrument name\. \n\n"
+        "Can omit `BTC-` for Bitcoin options and can omit all `-` and last `000` in the instrument name\. \n\n"
         "**Example:**\n"
         "`+1 26DEC25 95000 P`\n"
         "`-2 26DEC25 130000 C`\n"
