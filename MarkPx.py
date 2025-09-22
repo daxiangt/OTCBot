@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+from datetime import datetime, timezone, timedelta
 import logging
 
 # Set up a logger for this module
@@ -41,6 +42,7 @@ def parse_leg_string(leg_string: str) -> dict | None:
     Example: '+1 BTC-26SEP25-80000-P' -> {'instrument': 'BTC-26SEP25-80000-P', 'side': 'buy', 'quantity': 1}
              '-2 ETH-27JUN25-4000-C'  -> {'instrument': 'ETH-27JUN25-4000-C', 'side': 'sell', 'quantity': 2}
              '+1 26SEP25-95000-P'    -> Defaults to BTC: {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
+             '+1.5 26SEP25-95-P'     -> Corrects to BTC, adds '000', and handles decimals: {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1.5}
              '+1 26SEP25-95-P'       -> Corrects to BTC and adds '000': {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
              '1 26SEP25-95000-P'     -> Corrects to a buy: {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
 
@@ -73,10 +75,15 @@ def parse_leg_string(leg_string: str) -> dict | None:
         return None
 
     # --- Auto-correction and Validation for Quantity ---
+    def is_float(s: str) -> bool:
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+
     if not (qty_str.startswith('+') or qty_str.startswith('-')):
-        # If the user enters "1 BTC..." instead of "+1 BTC...", attempt to correct it.
-        # Heuristic: check if qty is a digit and instrument looks like a contract name.
-        if qty_str.isdigit() and instrument.count('-') >= 2:
+        if is_float(qty_str) and instrument.count('-') >= 2:
             logger.warning(f"Quantity '{qty_str}' should start with '+' or '-'. Assuming a buy ('+').")
             qty_str = f"+{qty_str}"
         else:
@@ -107,12 +114,12 @@ def parse_leg_string(leg_string: str) -> dict | None:
     # --- Final Parsing ---
     try:
         side = 'buy' if qty_str.startswith('+') else 'sell'
-        quantity = int(qty_str[1:])
+        quantity = float(qty_str[1:])
         if quantity <= 0:
             raise ValueError("Quantity must be a positive number")
         return {'instrument': instrument.upper(), 'side': side, 'quantity': quantity}
     except ValueError:
-        logger.error(f"Format Error: '{leg_string}'. Quantity must be a valid positive integer.")
+        logger.error(f"Format Error: '{leg_string}'. Quantity must be a valid positive number.")
         return None
 
 async def mark_px(strategy_legs_input: list[str]) -> str:
@@ -184,7 +191,7 @@ async def mark_px(strategy_legs_input: list[str]) -> str:
                 leg_price = -leg_price
             
             total_strategy_mark_price += leg_price
-            price_details.append(f" {leg['side'].upper():<4} {leg['quantity']}x {instrument:<22}: {mark_price:.4f}")
+            price_details.append(f" {leg['side'].upper():<4} {leg['quantity']:.2f}x {instrument:<22}: {mark_price:.4f}")
         else:
             # If a leg fails, mark the overall calculation as unsuccessful but continue processing others.
             all_legs_fetched_successfully = False
@@ -195,13 +202,20 @@ async def mark_px(strategy_legs_input: list[str]) -> str:
     for detail in price_details:
         output_lines.append(detail)
     
-    output_lines.append("\n" + "-" * 40)
+    output_lines.append("\n" + "-" * 45)
     if all_legs_fetched_successfully:
         index_price_str = f"{index_price:,.0f}" if index_price is not None else "N/A"
         output_lines.append(f"  Net Combo Mark: {total_strategy_mark_price:.4f} {first_underlying}\n"
-                            f"  Index Ref: ${index_price_str}")
+                            f"  Index Ref: ${index_price_str}\n")
     else:
         output_lines.append("  Net Combo Mark: N/A (Could not fetch price for all legs)")
+
+    # --- 6. Add Timestamp ---
+    # Create a timezone for UTC+8
+    utc_plus_8 = timezone(timedelta(hours=8), name='UTC+8')
+    # Get current time in UTC+8
+    timestamp = datetime.now(utc_plus_8).strftime('%Y-%m-%d %H:%M:%S %Z')
+    output_lines.append(f"  Timestamp: {timestamp}")
 
     return "\n".join(output_lines)
 
@@ -210,7 +224,7 @@ if __name__ == "__main__":
     async def main():
         # Example usage of the refactored mark_px function
         example_legs = [
-            "+1 26DEC25 95 P",      # Will default to BTC
+            "+1.5 26DEC25 95 P",      # Will default to BTC
             "-2 26SEP25 130 C",
         ]
         result_string = await mark_px(example_legs)
