@@ -41,6 +41,7 @@ def parse_leg_string(leg_string: str) -> dict | None:
     Example: '+1 BTC-26SEP25-80000-P' -> {'instrument': 'BTC-26SEP25-80000-P', 'side': 'buy', 'quantity': 1}
              '-2 ETH-27JUN25-4000-C'  -> {'instrument': 'ETH-27JUN25-4000-C', 'side': 'sell', 'quantity': 2}
              '+1 26SEP25-95000-P'    -> Defaults to BTC: {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
+             '+1 26SEP25-95-P'       -> Corrects to BTC and adds '000': {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
              '1 26SEP25-95000-P'     -> Corrects to a buy: {'instrument': 'BTC-26SEP25-95000-P', 'side': 'buy', 'quantity': 1}
 
     Args:
@@ -87,6 +88,21 @@ def parse_leg_string(leg_string: str) -> dict | None:
     # If the instrument name doesn't start with a known currency, prepend "BTC-".
     if not (instrument.startswith("BTC-") or instrument.startswith("ETH-") or instrument.startswith("USDC-")):
         instrument = f"BTC-{instrument}"
+
+    # --- Handle abbreviated BTC strike price (e.g., 95 for 95000) ---
+    # This logic applies only if the instrument is for BTC.
+    if instrument.startswith("BTC-"):
+        try:
+            parts = instrument.split('-')
+            # Expected format: BTC-EXPIRY-STRIKE-TYPE (4 parts)
+            if len(parts) == 4:
+                strike_str = parts[2]
+                # If strike is a number and seems abbreviated (e.g., <= 3 digits), add "000"
+                if strike_str.isdigit() and len(strike_str) <= 3:
+                    parts[2] = f"{strike_str}000"
+                    instrument = "-".join(parts)
+        except Exception as e:
+            logger.warning(f"Could not process strike abbreviation for '{instrument}': {e}")
 
     # --- Final Parsing ---
     try:
@@ -194,8 +210,8 @@ if __name__ == "__main__":
     async def main():
         # Example usage of the refactored mark_px function
         example_legs = [
-            "+1 26DEC25 95000 P",      # Will default to BTC
-            "-2 26SEP25 130000 C",
+            "+1 26DEC25 95 P",      # Will default to BTC
+            "-2 26SEP25 130 C",
         ]
         result_string = await mark_px(example_legs)
         print(result_string)
