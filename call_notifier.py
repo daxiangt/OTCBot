@@ -97,8 +97,7 @@ def load_twilio_credentials_from_csv(file_path: Path) -> tuple[str, str, str]:
 # --- Twilio Configuration ---
 TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER = load_twilio_credentials_from_csv(TWILIO_CSV_PATH)
 
-# Load recipient phone numbers from the CSV file.
-RECIPIENT_PHONE_NUMBERS = load_recipient_numbers_from_csv(NUMBERS_TO_CALL_CSV_PATH)
+
 
 def send_twilio_call(message: str):
     """
@@ -109,6 +108,10 @@ def send_twilio_call(message: str):
         message (str): The text content to be read out during the call.
     """
     global LAST_CALL_TIMESTAMPS
+
+    # Load recipient phone numbers from the CSV file.
+    RECIPIENT_PHONE_NUMBERS = load_recipient_numbers_from_csv(NUMBERS_TO_CALL_CSV_PATH)
+
 
     # Check if Twilio credentials or recipient numbers are configured
     if any(val == "NOT_CONFIGURED" for val in [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER]):
