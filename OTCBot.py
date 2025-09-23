@@ -132,7 +132,8 @@ def read_ids_from_csv(file_path: Path, file_description: str) -> list[int]:
                 if row:  # Check if the row is not empty
                     try:
                         # Ensure the first column is a valid integer
-                        ids.append(int(row[0]))
+                        # Convert to float first to handle scientific notation, then to int.
+                        ids.append(int(float(row[0])))
                     except (ValueError, IndexError):
                         logger.warning(f"Skipping invalid ID in '{file_path}' on line {row_num}: '{row}'")
     except Exception as e:
