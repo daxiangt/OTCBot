@@ -24,18 +24,33 @@ CALL_COOLDOWN = timedelta(minutes=5)
 def load_recipient_numbers_from_csv(file_path: Path) -> list[str]:
     """
     Loads recipient phone numbers from the first column of a CSV file.
+    It handles potential scientific notation (e.g., 1.23E+10) from spreadsheets
+    and ensures numbers are in a valid format for Twilio.
     """
     numbers = []
     if not file_path.exists():
         logger.warning(f"'{file_path.name}' not found. No recipient numbers loaded for Twilio calls.")
         return []
-    
+
     try:
         with file_path.open(mode='r', encoding='utf-8') as infile:
             reader = csv.reader(infile)
             for row_num, row in enumerate(reader, start=1):
-                if row and row[0].strip():
-                    numbers.append(row[0].strip())
+                if not row or not row[0].strip():
+                    continue
+
+                number_str = row[0].strip()
+                try:
+                    # If 'e' or 'E' is in the string, it's likely scientific notation.
+                    if 'e' in number_str.lower():
+                        number_str = f"{int(float(number_str))}"
+
+                    # Ensure the number is in E.164 format for Twilio by adding '+' if missing.
+                    if not number_str.startswith('+'):
+                        number_str = f"+{number_str}"
+                    numbers.append(number_str)
+                except (ValueError, TypeError):
+                    logger.warning(f"Skipping invalid phone number format in '{file_path.name}' on line {row_num}: '{row[0]}'")
     except Exception as e:
         logger.error(f"Error reading '{file_path.name}': {e}")
 
@@ -55,11 +70,21 @@ def load_twilio_credentials_from_csv(file_path: Path) -> tuple[str, str, str]:
             reader = csv.reader(infile)
             sid = next(reader)[0].strip()
             token = next(reader)[0].strip()
-            number = next(reader)[0].strip()
-            if not all([sid, token, number]):
+            number_str = next(reader)[0].strip()
+
+            if not all([sid, token, number_str]):
                 raise ValueError(f"One or more credential fields are empty in {file_path.name}.")
+
+            # Handle scientific notation for the Twilio phone number
+            if 'e' in number_str.lower():
+                number_str = f"{int(float(number_str))}"
+            
+            # Ensure the number is in E.164 format by adding '+' if missing
+            if not number_str.startswith('+'):
+                number_str = f"+{number_str}"
+
             logger.info(f"Twilio credentials loaded successfully from {file_path.name}.")
-            return sid, token, number
+            return sid, token, number_str
     except FileNotFoundError:
         logger.warning(f"'{file_path.name}' not found at '{file_path}'. Phone call notifications will be disabled.")
     except (StopIteration, IndexError):
