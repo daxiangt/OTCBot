@@ -115,10 +115,10 @@ async def monitor_group_chats(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         job = context.job_queue.run_once(
             unanswered_message_callback,
-            180, # 3 minutes
+            120, # 2 minutes
             name=f"unanswered_{chat.id}_{message.message_id}",
             chat_id=chat.id,
             data={'chat_title': chat.title, 'user_name': user.full_name}
         )
         context.chat_data['unanswered_job'] = job
-        logger.info(f"Non-admin '{user.username}' sent a message in '{chat.title}'. Scheduled a 3-min check.")
+        logger.info(f"Non-admin '{user.username}' sent a message in '{chat.title}'. Scheduled a 2-min check.")
