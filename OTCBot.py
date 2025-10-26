@@ -114,9 +114,9 @@ except Exception as e:
 
 
 #load groups and users from csv
-def read_ids_from_csv(file_path: Path, file_description: str) -> list[int]:
+def read_ids_from_csv(file_path: Path, file_description: str) -> list[str]:
     """
-    Reads a list of integer IDs from the first column of a CSV file.
+    Reads a list of IDs as strings from the first column of a CSV file.
     """
     ids = []
     if not file_path.exists():
@@ -131,9 +131,9 @@ def read_ids_from_csv(file_path: Path, file_description: str) -> list[int]:
             for row_num, row in enumerate(reader, start=2):
                 if row:  # Check if the row is not empty
                     try:
-                        # Ensure the first column is a valid integer
-                        # Convert to float first to handle scientific notation, then to int.
-                        ids.append(int(float(row[0])))
+                        # Read the ID as a string and remove any leading/trailing whitespace.
+                        # This avoids any issues with scientific notation from spreadsheets.
+                        ids.append(row[0].strip())
                     except (ValueError, IndexError):
                         logger.warning(f"Skipping invalid ID in '{file_path}' on line {row_num}: '{row}'")
     except Exception as e:
@@ -180,7 +180,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def send_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     # Check if the user is in the allowed list
-    if user.id not in ALLOWED_USER_IDS:
+    if str(user.id) not in ALLOWED_USER_IDS:
         logger.warning(f"Unauthorized send attempt by user {user.username} ({user.id}).")
         await update.message.reply_text("Sorry, you are not authorized to use this command.")
         return ConversationHandler.END
@@ -267,7 +267,7 @@ async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     broadcast_type = context.user_data.get('broadcast_type')
 
 
-    if user.id not in ALLOWED_USER_IDS:
+    if str(user.id) not in ALLOWED_USER_IDS:
         logger.warning(f"Unauthorized send attempt by user {user.username} ({user.id}).")
         if query.message.photo:
             await query.edit_message_caption(caption="Sorry, you are not authorized to perform this action.")
@@ -314,7 +314,7 @@ async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             successful_sends += 1
         except Exception as e:
             failed_sends += 1
-            failed_group_ids.append(str(group_id))
+            failed_group_ids.append(group_id)
             logger.error(f"Failed to send message to group {group_id}: {e}")
 
     confirmation_message = (
@@ -359,7 +359,7 @@ async def reload_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
     user = update.effective_user
-    if user.id not in ALLOWED_USER_IDS:
+    if str(user.id) not in ALLOWED_USER_IDS:
         logger.warning(f"Unauthorized reload attempt by user {user.username} ({user.id}).")
         await update.message.reply_text("Sorry, you are not authorized to use this command.")
         return
@@ -417,7 +417,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Provides an overview of the bot's status."""
     user = update.effective_user
-    if user.id not in ALLOWED_USER_IDS:
+    if str(user.id) not in ALLOWED_USER_IDS:
         await update.message.reply_text("Sorry, you are not authorized to use this command.")
         return
 
