@@ -76,12 +76,12 @@ async def monitor_group_chats(update: Update, context: ContextTypes.DEFAULT_TYPE
     monitor_ids = context.bot_data.get("monitor_ids", set())
 
     # Only monitor messages in specified groups and ignore messages from any bot.
-    if chat.id not in monitor_ids or user.is_bot:
+    if str(chat.id) not in monitor_ids or user.is_bot:
         return
 
     unanswered_job = context.chat_data.get('unanswered_job')
 
-    if user.id in allowed_user_ids:
+    if str(user.id) in allowed_user_ids:
         # An allowed user (admin) sent a message.
         # 1. Record their message time as the last known admin activity.
         context.chat_data['last_admin_message_time'] = message.date
