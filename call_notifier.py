@@ -1,5 +1,7 @@
 import os
 import logging
+import re
+import html
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 from datetime import datetime, timedelta
@@ -98,6 +100,40 @@ def load_twilio_credentials_from_csv(file_path: Path) -> tuple[str, str, str]:
 TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER = load_twilio_credentials_from_csv(TWILIO_CSV_PATH)
 
 
+def sanitize_message_for_twiml(message: str) -> str:
+    """
+    Sanitizes a message for use in TwiML <Say> tag by:
+    1. Removing emoji and other non-ASCII characters
+    2. Replacing problematic characters with TTS-friendly alternatives
+    3. Normalizing whitespace
+
+    Args:
+        message (str): The original message text
+
+    Returns:
+        str: Sanitized message safe for TwiML and TTS-friendly
+    """
+    # Remove emoji and other non-ASCII characters (keep only printable ASCII)
+    cleaned = ''.join(char for char in message if ord(char) < 128)
+
+    # Replace XML special characters with TTS-friendly alternatives
+    # instead of HTML entities that TTS would read literally
+    replacements = {
+        '<': ' ',   # Replace with space for better flow
+        '>': ' ',   # Replace with space for better flow
+        '&': 'and',
+        '"': '',    # Remove quotes as they don't add value in speech
+        "'": '',    # Remove quotes
+    }
+
+    for char, replacement in replacements.items():
+        cleaned = cleaned.replace(char, replacement)
+
+    # Normalize whitespace (replace multiple spaces/newlines with single space)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    return cleaned
+
 
 def send_twilio_call(message: str):
     """
@@ -124,7 +160,13 @@ def send_twilio_call(message: str):
 
     try:
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        twiml_message = f'<Response><Say language="en-US">{message}</Say></Response>'
+
+        # Sanitize the message for TwiML to prevent emoji and XML parsing issues
+        sanitized_message = sanitize_message_for_twiml(message)
+        twiml_message = f'<Response><Say language="en-US">{sanitized_message}</Say></Response>'
+
+        logger.info(f"Original message: {message}")
+        logger.info(f"Sanitized message for TwiML: {sanitized_message}")
 
         for number in RECIPIENT_PHONE_NUMBERS:
             # --- Per-Number Rate Limiting Check ---
